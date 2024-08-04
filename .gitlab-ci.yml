@@ -43,6 +43,7 @@ make-latest:
   needs:
     - job: create-variables
       artifacts: true
+    - job: build
   variables:
     DOCKER_HOST: tcp://thedockerhost:2375
     DOCKER_DRIVER: overlay2
@@ -67,6 +68,7 @@ make-release:
   needs:
     - job: create-variables
       artifacts: true
+    - job: build
   script:
     - echo "Release $VERSION"
     - |
