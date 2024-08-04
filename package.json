@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@types/node": "^22.1.0",
+    "@types/node-fetch": "^2.6.11",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@ibaraki-douji/console": "^1.0.1",
+    "node-fetch": "^2.6.7"
+  }
+}

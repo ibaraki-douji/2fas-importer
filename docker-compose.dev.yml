@@ -1,0 +1,11 @@
+services:
+  importer:
+    image: docker.ibaraki.app/mirror/twofas/2fas-importer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    extra_hosts:
+      - "2fas-admin.localhost:192.168.1.1"
+      - "2fas.localhost:192.168.1.1"

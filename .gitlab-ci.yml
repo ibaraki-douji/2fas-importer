@@ -1,0 +1,77 @@
+stages:
+  - prepare
+  - docker
+  - release
+
+create-variables:
+  image: node:alpine
+  stage: prepare
+  script:
+    - node -e "const fs = require('fs'); const package = JSON.parse(fs.readFileSync('package.json')); fs.writeFileSync('variables.env', 'VERSION=' + package.version);"
+  artifacts:
+    reports:
+      dotenv: variables.env
+  only:
+    - master
+
+
+build:
+  image: docker
+  services:
+    - name: docker:dind
+      alias: thedockerhost
+  variables:
+    DOCKER_HOST: tcp://thedockerhost:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  stage: docker
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker image rm $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker builder prune -af
+  only:
+    - master
+    - dev
+
+make-latest:
+  image: docker
+  services:
+    - name: docker:dind
+      alias: thedockerhost
+  needs:
+    - job: create-variables
+      artifacts: true
+  variables:
+    DOCKER_HOST: tcp://thedockerhost:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  stage: release
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - docker image rm $CI_REGISTRY_IMAGE:latest
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME $CI_REGISTRY_IMAGE:$VERSION
+    - docker push $CI_REGISTRY_IMAGE:$VERSION
+    - docker image rm $CI_REGISTRY_IMAGE:$VERSION
+    - docker builder prune -af
+  only:
+    - master
+
+make-release:
+  image: registry.gitlab.com/gitlab-org/release-cli
+  stage: release
+  needs:
+    - job: create-variables
+      artifacts: true
+  script:
+    - echo "Release $VERSION"
+    - |
+      release-cli --server-url https://git.ibaraki.app \
+      create --name "Release $VERSION" --tag-name v$VERSION \
+      --description "### Ibaraki Group <br /> <br /> Docker Image: $CI_REGISTRY_IMAGE:$VERSION" --ref $CI_COMMIT_SHA
+  only:
+    - master
